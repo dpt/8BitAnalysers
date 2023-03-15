@@ -14,7 +14,7 @@ import genutil
 def gen_header(in_log, out_hdr):
 
     with open(out_hdr, 'w') as f:
-        f.write('// #version:{}#\n'.format(Version))
+        f.write(f'// #version:{Version}#\n')
         f.write('// machine generated, do not edit!\n')
         f.write('#include <stdint.h>\n')
         f.write('typedef struct {\n')
@@ -26,15 +26,18 @@ def gen_header(in_log, out_hdr):
         lines = []
         with open(in_log, 'r') as fi:
             lines = fi.readlines()
-        for line in lines :
-            f.write('  {{ "{}", 0x{},0x{},0x{},0x{},0x{},0x{} }},\n'.format(
-                line[16:48],    # desc
-                line[0:4],      # PC
-                line[50:52],    # A
-                line[55:57],    # X
-                line[60:62],    # Y
-                line[65:67],    # P
-                line[71:73]))   # S
+        for line in lines:
+            f.write(
+                '  {{ "{}", 0x{},0x{},0x{},0x{},0x{},0x{} }},\n'.format(
+                    line[16:48],
+                    line[:4],
+                    line[50:52],
+                    line[55:57],
+                    line[60:62],
+                    line[65:67],
+                    line[71:73],
+                )
+            )
         f.write('};\n')
 
 #-------------------------------------------------------------------------------

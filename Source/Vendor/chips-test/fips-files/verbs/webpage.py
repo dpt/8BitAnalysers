@@ -153,14 +153,14 @@ GitHubSamplesURL = 'https://github.com/floooh/chips-test/master/examples'
 BuildConfig = 'wasm-ninja-release'
 
 #-------------------------------------------------------------------------------
-def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
+def deploy_webpage(fips_dir, proj_dir, webpage_dir):
     """builds the final webpage under under fips-deploy/chips-webpage"""
     ws_dir = util.get_workspace_dir(fips_dir)
-    emsc_deploy_dir = '{}/fips-deploy/chips-test/{}'.format(ws_dir, BuildConfig)
+    emsc_deploy_dir = f'{ws_dir}/fips-deploy/chips-test/{BuildConfig}'
 
     # build the thumbnail gallery
     content = ''
-    for item in items :
+    for item in items:
         if item['type'] == 'test':
             continue
         title = item['title']
@@ -169,117 +169,122 @@ def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
         ui_url = url.replace(".html", "-ui.html")
         image = item['img']
         note = item['note']
-        log.info('> adding thumbnail for {}'.format(url))
+        log.info(f'> adding thumbnail for {url}')
         content += '<div class="thumb-frame">\n'
-        content += '  <span class="thumb-title">{}</span>\n'.format(title)
-        if os.path.exists(emsc_deploy_dir + '/' + system + '-ui.js'):
-            content += '<a class="img-btn-link" href="{}"><div class="img-btn">UI</div></a>'.format(ui_url)
-        content += '  <a href="{}"><img class="image" src="{}"></img></a>\n'.format(url,image)
+        content += f'  <span class="thumb-title">{title}</span>\n'
+        if os.path.exists(f'{emsc_deploy_dir}/{system}-ui.js'):
+            content += f'<a class="img-btn-link" href="{ui_url}"><div class="img-btn">UI</div></a>'
+        content += f'  <a href="{url}"><img class="image" src="{image}"></img></a>\n'
         if note != '':
-            content += '  <span class="thumb-footer">{}</span>\n'.format(note)
+            content += f'  <span class="thumb-footer">{note}</span>\n'
         content += '</div>\n'
 
     # populate the html template, and write to the build directory
-    with open(proj_dir + '/webpage/index.html', 'r') as f :
+    with open(f'{proj_dir}/webpage/index.html', 'r') as f:
         templ = Template(f.read())
     html = templ.safe_substitute(samples=content)
-    with open(webpage_dir + '/index.html', 'w') as f :
+    with open(f'{webpage_dir}/index.html', 'w') as f:
         f.write(html)
 
     # and the same with the CSS template
-    with open(proj_dir + '/webpage/style.css', 'r') as f :
+    with open(f'{proj_dir}/webpage/style.css', 'r') as f:
         templ = Template(f.read())
     css = templ.safe_substitute()
-    with open(webpage_dir +'/style.css', 'w') as f :
+    with open(f'{webpage_dir}/style.css', 'w') as f:
         f.write(css)
 
     # copy other required files
-    for name in ['favicon.png', 'help.html'] :
-        log.info('> copy file: {}'.format(name))
-        shutil.copy(proj_dir + '/webpage/' + name, webpage_dir + '/' + name)
+    for name in ['favicon.png', 'help.html']:
+        log.info(f'> copy file: {name}')
+        shutil.copy(f'{proj_dir}/webpage/{name}', f'{webpage_dir}/{name}')
 
     # generate emu HTML pages
-    for system in systems :
-        log.info('> generate emscripten HTML page: {}'.format(system))
-        for ext in ['wasm', 'js'] :
-            src_path = '{}/{}.{}'.format(emsc_deploy_dir, system, ext)
-            if os.path.isfile(src_path) :
-                shutil.copy(src_path, '{}/'.format(webpage_dir))
-        with open(proj_dir + '/webpage/emsc.html', 'r') as f :
+    for system in systems:
+        log.info(f'> generate emscripten HTML page: {system}')
+        for ext in ['wasm', 'js']:
+            src_path = f'{emsc_deploy_dir}/{system}.{ext}'
+            if os.path.isfile(src_path):
+                shutil.copy(src_path, f'{webpage_dir}/')
+        with open(f'{proj_dir}/webpage/emsc.html', 'r') as f:
             templ = Template(f.read())
         src_url = GitHubSamplesURL + name
         html = templ.safe_substitute(name=system, prog=system, source=src_url)
-        with open('{}/{}.html'.format(webpage_dir, system), 'w') as f :
+        with open(f'{webpage_dir}/{system}.html', 'w') as f:
             f.write(html)
 
     # copy data files and images
     for system in systems:
-        src_dir = proj_dir + '/webpage/' + system
+        src_dir = f'{proj_dir}/webpage/{system}'
         if os.path.exists(src_dir):
-            dst_dir = webpage_dir + '/' + system
+            dst_dir = f'{webpage_dir}/{system}'
             if os.path.isdir(dst_dir):
                 shutil.rmtree(dst_dir)
             shutil.copytree(src_dir, dst_dir)
 
 #-------------------------------------------------------------------------------
-def build_deploy_webpage(fips_dir, proj_dir, rebuild) :
+def build_deploy_webpage(fips_dir, proj_dir, rebuild):
     # if webpage dir exists, clear it first
     ws_dir = util.get_workspace_dir(fips_dir)
-    webpage_dir = '{}/fips-deploy/chips-webpage'.format(ws_dir)
-    if rebuild :
-        if os.path.isdir(webpage_dir) :
-            shutil.rmtree(webpage_dir)
+    webpage_dir = f'{ws_dir}/fips-deploy/chips-webpage'
+    if rebuild and os.path.isdir(webpage_dir):
+        shutil.rmtree(webpage_dir)
     if not os.path.isdir(webpage_dir) :
         os.makedirs(webpage_dir)
 
     # compile samples
     project.gen(fips_dir, proj_dir, BuildConfig)
     project.build(fips_dir, proj_dir, BuildConfig)
-    
+
     # deploy the webpage
     deploy_webpage(fips_dir, proj_dir, webpage_dir)
 
-    log.colored(log.GREEN, 'Generated Samples web page under {}.'.format(webpage_dir))
+    log.colored(log.GREEN, f'Generated Samples web page under {webpage_dir}.')
 
 #-------------------------------------------------------------------------------
-def serve_webpage(fips_dir, proj_dir) :
+def serve_webpage(fips_dir, proj_dir):
     ws_dir = util.get_workspace_dir(fips_dir)
-    webpage_dir = '{}/fips-deploy/chips-webpage'.format(ws_dir)
+    webpage_dir = f'{ws_dir}/fips-deploy/chips-webpage'
     p = util.get_host_platform()
-    if p == 'osx' :
-        try :
+    if p == 'osx':
+        try:
             subprocess.call(
-                'open http://localhost:8000 ; python {}/mod/httpserver.py'.format(fips_dir),
-                cwd = webpage_dir, shell=True)
+                f'open http://localhost:8000 ; python {fips_dir}/mod/httpserver.py',
+                cwd=webpage_dir,
+                shell=True,
+            )
         except KeyboardInterrupt :
             pass
     elif p == 'win':
         try:
             subprocess.call(
-                'cmd /c start http://localhost:8000 && python {}/mod/httpserver.py'.format(fips_dir),
-                cwd = webpage_dir, shell=True)
+                f'cmd /c start http://localhost:8000 && python {fips_dir}/mod/httpserver.py',
+                cwd=webpage_dir,
+                shell=True,
+            )
         except KeyboardInterrupt:
             pass
     elif p == 'linux':
         try:
             subprocess.call(
-                'xdg-open http://localhost:8000; python {}/mod/httpserver.py'.format(fips_dir),
-                cwd = webpage_dir, shell=True)
+                f'xdg-open http://localhost:8000; python {fips_dir}/mod/httpserver.py',
+                cwd=webpage_dir,
+                shell=True,
+            )
         except KeyboardInterrupt:
             pass
 
 #-------------------------------------------------------------------------------
-def run(fips_dir, proj_dir, args) :
-    if len(args) > 0 :
-        if args[0] == 'build' :
+def run(fips_dir, proj_dir, args):
+    if len(args) > 0:
+        if args[0] == 'build':
             build_deploy_webpage(fips_dir, proj_dir, False)
         elif args[0] == 'rebuild' :
             build_deploy_webpage(fips_dir, proj_dir, True)
         elif args[0] == 'serve' :
             serve_webpage(fips_dir, proj_dir)
-        else :
-            log.error("Invalid param '{}', expected 'build' or 'serve'".format(args[0]))
-    else :
+        else:
+            log.error(f"Invalid param '{args[0]}', expected 'build' or 'serve'")
+    else:
         log.error("Param 'build' or 'serve' expected")
 
 #-------------------------------------------------------------------------------

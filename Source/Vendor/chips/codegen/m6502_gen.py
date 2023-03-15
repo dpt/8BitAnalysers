@@ -131,7 +131,7 @@ def l(s) :
 def write_op(op):
     if not op.cmt:
         op.cmt = '???'
-    l('            case '+hex(op.byte)+':/*'+op.cmt+'*/'+op.src+'break;')
+    l(f'            case {hex(op.byte)}:/*{op.cmt}*/{op.src}break;')
 
 #-------------------------------------------------------------------------------
 def cmt(o,cmd):
@@ -141,7 +141,7 @@ def cmt(o,cmd):
     addr_mode = ops[cc][bbb][aaa][0]
     o.cmt = cmd;
     if addr_mode != '':
-        o.cmt += ' '+addr_mode_str[addr_mode]
+        o.cmt += f' {addr_mode_str[addr_mode]}'
 
 #-------------------------------------------------------------------------------
 def u_cmt(o,cmd):
@@ -168,58 +168,48 @@ def enc_addr(op):
     if addr_mode == A____:
         # no addressing, this still puts the PC on the address bus without 
         # incrementing the PC
-        src = '_A_IMP();'
+        return '_A_IMP();'
     elif addr_mode == A_IMM:
         # immediate mode
-        src = '_A_IMM();'
+        return '_A_IMM();'
     elif addr_mode == A_ZER:
         # zero page
-        src = '_A_ZER();'
+        return '_A_ZER();'
     elif addr_mode == A_ZPX:
         # zero page + X
-        src = '_A_ZPX();'
+        return '_A_ZPX();'
     elif addr_mode == A_ZPY:
         # zero page + Y
-        src = '_A_ZPY();'
+        return '_A_ZPY();'
     elif addr_mode == A_ABS:
         # absolute
-        src = '_A_ABS();'
+        return '_A_ABS();'
     elif addr_mode == A_ABX:
         # absolute + X
         # this needs to check if a page boundary is crossed, which costs
         # and additional cycle, but this early-out only happens when the
         # instruction doesn't need to write back to memory
-        if mem_access == M_R_:
-            src = '_A_ABX_R();'
-        else:
-            src = '_A_ABX_W();'
+        return '_A_ABX_R();' if mem_access == M_R_ else '_A_ABX_W();'
     elif addr_mode == A_ABY:
         # absolute + Y
         # same page-boundary-crossed special case as absolute+X
-        if mem_access == M_R_:
-            src = '_A_ABY_R();'
-        else:
-            src = '_A_ABY_W();'
+        return '_A_ABY_R();' if mem_access == M_R_ else '_A_ABY_W();'
     elif addr_mode == A_IDX:
         # (zp,X)
-        src = '_A_IDX();'
+        return '_A_IDX();'
     elif addr_mode == A_IDY:
         # (zp),Y
         # same page-boundary-crossed special case as absolute+X
-        if mem_access == M_R_:
-            src = '_A_IDY_R();'
-        else:
-            src = '_A_IDY_W();'
+        return '_A_IDY_R();' if mem_access == M_R_ else '_A_IDY_W();'
     elif addr_mode == A_JMP:
         # jmp is completely handled in instruction decoding
-        src = ''
+        return ''
     elif addr_mode == A_JSR:
-        # jsr is completely handled in instruction decoding 
-        src = ''
+        # jsr is completely handled in instruction decoding
+        return ''
     else:
         # invalid instruction
-        src = ''
-    return src
+        return ''
 
 #-------------------------------------------------------------------------------
 def i_brk(o):
@@ -359,22 +349,22 @@ def i_pla(o):
 
 #-------------------------------------------------------------------------------
 def i_se(o, f):
-    cmt(o,'SE'+flag_name(f))
-    o.src += '_RD();c.P|='+hex(f)+';'
+    cmt(o, f'SE{flag_name(f)}')
+    o.src += f'_RD();c.P|={hex(f)};'
 
 #-------------------------------------------------------------------------------
 def i_cl(o, f):
-    cmt(o,'CL'+flag_name(f))
-    o.src += '_RD();c.P&=~'+hex(f)+';'
+    cmt(o, f'CL{flag_name(f)}')
+    o.src += f'_RD();c.P&=~{hex(f)};'
 
 #-------------------------------------------------------------------------------
 def i_br(o, m, v):
     cmt(o,branch_name(m,v))
     o.src += '_RD();'
-    o.src += 'if((c.P&'+hex(m)+')=='+hex(v)+'){'
+    o.src += f'if((c.P&{hex(m)})=={hex(v)}' + '){'
     o.src +=   '_RD();'   # branch taken, at least 3 cycles
     o.src +=   't=c.PC+(int8_t)_GD();'
-    o.src +=   'if((t&0xFF00)!=(c.PC&0xFF00)){' 
+    o.src +=   'if((t&0xFF00)!=(c.PC&0xFF00)){'
     o.src +=     '_RD();' # target address not in same memory page, 4 cycles
     o.src +=   '}'
     o.src +=   'c.PC=t;'
@@ -584,9 +574,9 @@ def u_isb(o):
 
 #-------------------------------------------------------------------------------
 def _asl(val):
-    s  = 'c.P=(c.P&~M6502_CF)|(('+val+'&0x80)?M6502_CF:0);'
-    s += val+'<<=1;'
-    s += '_NZ('+val+');'
+    s = f'c.P=(c.P&~M6502_CF)|(({val}&0x80)?M6502_CF:0);'
+    s += f'{val}<<=1;'
+    s += f'_NZ({val});'
     return s
 
 #-------------------------------------------------------------------------------
@@ -619,9 +609,9 @@ def u_slo(o):
 
 #-------------------------------------------------------------------------------
 def _lsr(val):
-    s  = 'c.P=(c.P&~M6502_CF)|(('+val+'&0x01)?M6502_CF:0);'
-    s += val+'>>=1;'
-    s += '_NZ('+val+');'
+    s = f'c.P=(c.P&~M6502_CF)|(({val}&0x01)?M6502_CF:0);'
+    s += f'{val}>>=1;'
+    s += f'_NZ({val});'
     return s
 
 #-------------------------------------------------------------------------------
@@ -662,13 +652,12 @@ def u_sre(o):
 
 #-------------------------------------------------------------------------------
 def _rol(val):
-    s  = '{'
-    s += 'bool carry=c.P&M6502_CF;'
+    s = '{' + 'bool carry=c.P&M6502_CF;'
     s += 'c.P&=~(M6502_NF|M6502_ZF|M6502_CF);'
-    s += 'if('+val+'&0x80){c.P|=M6502_CF;}'
-    s += val+'<<=1;'
+    s += f'if({val}' + '&0x80){c.P|=M6502_CF;}'
+    s += f'{val}<<=1;'
     s += 'if(carry){'+val+'|=0x01;}'
-    s += '_NZ('+val+');'
+    s += f'_NZ({val});'
     s += '}'
     return s
 
@@ -702,13 +691,12 @@ def u_rla(o):
 
 #-------------------------------------------------------------------------------
 def _ror(val):
-    s  = '{'
-    s += 'bool carry=c.P&M6502_CF;'
+    s = '{' + 'bool carry=c.P&M6502_CF;'
     s += 'c.P&=~(M6502_NF|M6502_ZF|M6502_CF);'
-    s += 'if('+val+'&0x01){c.P|=M6502_CF;}'
-    s += val+'>>=1;'
+    s += f'if({val}' + '&0x01){c.P|=M6502_CF;}'
+    s += f'{val}>>=1;'
     s += 'if(carry){'+val+'|=0x80;}'
-    s += '_NZ('+val+');'
+    s += f'_NZ({val});'
     s += '}'
     return s
 
@@ -972,7 +960,7 @@ def enc_op(op):
 #-------------------------------------------------------------------------------
 #   execution starts here
 #
-for i in range(0, 256):
+for i in range(256):
     write_op(enc_op(i))
 
 with open(InpPath, 'r') as inf:
